@@ -1,172 +1,91 @@
-import moderngl
-from moderngl_window import geometry
-from PIL import Image
-from OpenGL import GL
-import numpy as np
+import os
 import cv2
-from threading import Thread, Event
-from pyrr import Matrix44
+import moderngl_window as mglw
+import numpy as np
+import camera
+from dotenv import load_dotenv
+
+from shapes.rectangle import Rectangle
+from shapes.sphere import Sphere
+
+load_dotenv()
+MARKER_SIZE = 0.48
+DEBUG = os.environ.get("DEBUG", False)
 
 
-from _window import Window
+class ChemistryAR(mglw.WindowConfig):
+    title = "OpenGL Window"
+    gl_version = (3, 3)
+    resizable = False
 
-thread_quit = Event()
-cap = cv2.VideoCapture(cv2.CAP_DSHOW)
-new_frame = cap.read()[1]
-
-
-def init_video():
-    print("Initializing video...")
-    video_thread = Thread(target=update_video, args=())
-    video_thread.start()
-
-
-def update_video():
-    global new_frame
-    while not thread_quit.is_set():
-        ret, frame = cap.read()
-        if not ret:
-            print("Error reading frame from video capture")
-            break
-        new_frame = frame
-    cap.release()
-    cv2.destroyAllWindows()
-
-
-class ChemistryAR(Window):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.texture = None
 
-        self.program_sphere = self.ctx.program(
-            vertex_shader="""
-            #version 330
-
-            uniform mat4 m_model;
-            uniform mat4 m_proj;
-
-            in vec3 in_position;
-            in vec3 in_normal;
-
-            out vec3 pos;
-            out vec3 normal;
-
-            void main() {
-                vec4 p = m_model * vec4(in_position, 1.0);
-                gl_Position =  m_proj * p;
-                mat3 m_normal = inverse(transpose(mat3(m_model)));
-                normal = m_normal * normalize(in_normal);
-                pos = p.xyz;
-            }
-            """,
-            fragment_shader="""
-            #version 330
-
-            out vec4 fragColor;
-            uniform vec4 color = vec4(1.0, 0.0, 0.0, 1.0);
-
-            in vec3 pos;
-            in vec3 normal;
-
-            void main() {
-                float l = dot(normalize(-pos), normalize(normal));
-                fragColor = color * (0.25 + abs(l) * 0.75);
-            }
-            """,
+        self.sphere = None
+        self.rectangle = None
+        self.cap = cv2.VideoCapture(cv2.CAP_DSHOW)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
+        self.aruco_params = cv2.aruco.DetectorParameters()
+        self.projection_matrix = camera.intrinsic2Project(
+            self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=10.0
         )
 
-        self.prog = self.ctx.program(
-            # Creamos el shader para dibujar la imagen
-            vertex_shader="""
-                #version 330
-                in vec2 in_vert;
-                out vec2 frag_texcoord;
-                void main() {
-                    frag_texcoord = in_vert * 0.5 + 0.5;
-                    gl_Position = vec4(in_vert, 0.0, 1.0);
-                }
-            """,
-            fragment_shader="""
-                #version 330
-                uniform sampler2D texture;
-                in vec2 frag_texcoord;
-                out vec4 fragColor;
-                void main() {
-                    fragColor = texture2D(texture, frag_texcoord);
-                }
-            """,
-        )
-        # Creamos los vértices de un rectángulo que cubra toda la pantalla
-        vertices = np.array(
-            [
-                -1.0,
-                1.0,
-                -1.0,
-                -1.0,
-                1.0,
-                1.0,
-                1.0,
-                -1.0,
-            ],
-            dtype="f4",
-        )
+    def render(self, time: float, frame_time: float):
+        self.ctx.clear(1.0, 1.0, 1.0)
 
-        # Creamos el VAO (Vertex Array Object) y el VBO (Vertex Buffer Object)
-        self.vbo = self.ctx.buffer(vertices)
-        self.vao = self.ctx.vertex_array(self.prog, [(self.vbo, "2f", "in_vert")])
-        self.sphere = geometry.sphere(radius=0.05, sectors=32, rings=16)
-        self.projection = Matrix44.perspective_projection(
-            60, self.wnd.aspect_ratio, 1, 100, dtype="f4"
-        )
+        if not self.sphere:
+            print("Creating sphere")
+            self.sphere = Sphere(self.ctx, 0.3, self.projection_matrix)
 
-    def render(self, time, frame_time):
-        global new_frame
+        if not self.rectangle:
+            print("Creating rectangle")
+            width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.rectangle = Rectangle(self.ctx, width, height)
 
-        frame = new_frame
-        if self.texture:
-            self.texture.release()
-        # convert image to OpenGL texture format
-        tx_image = cv2.flip(frame, 0)
-        tx_image = Image.fromarray(tx_image)
-        tx_size = (tx_image.size[0], tx_image.size[1])
-        tx_image = tx_image.tobytes("raw", "BGRX", 0, 1)
-        texture = GL.glGenTextures(1)
-        # GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, texture)
-        GL.glTexImage2D(
-            GL.GL_TEXTURE_2D,
-            0,
-            GL.GL_RGBA,
-            tx_size[0],
-            tx_size[1],
-            0,
-            GL.GL_RGBA,
-            GL.GL_UNSIGNED_BYTE,
-            tx_image,
-        )
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST)
-        self.texture = self.ctx.external_texture(texture, tx_size, 4, 0, "f1")
+        ret, frame = self.cap.read()
+        # Convertir a escala de grises para mejorar la detección
+        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        view_matrix = np.empty((4, 4), dtype=np.float32)
+        if ret:
+            corners, ids, _ = cv2.aruco.detectMarkers(
+                frame_gray, self.aruco_dict, parameters=self.aruco_params
+            )
+            if ids is not None:
+                rvecs, tvecs = camera.solvePnPAruco(
+                    corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
+                )
+                # rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
+                #     corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
+                # )
+                view_matrix = camera.extrinsic2ModelView(rvecs, tvecs, offset=1.0)
+                if DEBUG:
+                    cv2.drawFrameAxes(
+                        frame,
+                        camera.cameraMatrix,
+                        camera.distCoeffs,
+                        rvecs,
+                        tvecs,
+                        0.1,
+                    )
 
-        self.ctx.clear()
-        self.ctx.enable(self.ctx.DEPTH_TEST | self.ctx.CULL_FACE)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = cv2.flip(frame, 0)
 
-        self.texture.use()
-        self.program_sphere["m_proj"].write(self.projection)
+        # Dibuja el rectángulo
+        self.rectangle.render(frame.tobytes())
 
-        trans = Matrix44.from_translation((1, 0, -2), dtype="f4")
-        rot = Matrix44.from_eulers((time / 2, time / 12.33, time / 11.94), dtype="f4")
-        matrix = rot @ trans
-        self.program_sphere["m_model"].write(matrix)
-
-        self.vao.render(moderngl.TRIANGLE_STRIP)
-        self.sphere.render(self.program_sphere)
+        # Dibuja la esfera
+        self.sphere.render(view_matrix)
 
     def close(self):
-        thread_quit.set()
+        self.cap.release()
+        cv2.destroyAllWindows()
         super().close()
 
 
+# Ejecuta la aplicación
 if __name__ == "__main__":
-    init_video()
     ChemistryAR.run()
