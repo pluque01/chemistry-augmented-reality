@@ -1,6 +1,7 @@
 import numpy as np
 from typing import List, Dict
 from shapes.sphere import Sphere
+import camera
 
 registered_atoms: Dict[str, float] = dict(
     H=0.31,
@@ -86,7 +87,14 @@ class Atom(Sphere):
 
 
 class Molecule:
-    def __init__(self, ctx, atoms: List[str], aruco: int, projection_matrix):
+    def __init__(
+        self,
+        ctx,
+        atoms: List[str],
+        aruco: int,
+        position: np.ndarray,
+        projection_matrix,
+    ):
         self.ctx = ctx
         self.aruco = aruco
         self.projection_matrix = projection_matrix
@@ -94,7 +102,7 @@ class Molecule:
 
         # Movement related
         self.ACCELERATION = 2
-        self.position = [0.0, 0.0, 0.0]
+        self.position = position
 
         for atom in atoms:
             radius = registered_atoms[atom]
@@ -102,8 +110,8 @@ class Molecule:
 
     def render(self, view_matrix: np.ndarray, frame_time: float):
         # Get the 4th column of the view matrix
-        aruco_position = view_matrix[12:15]
-        for i in range(3):
+        aruco_position = camera.extrinsic2Position(view_matrix)
+        for i in range(len(self.position)):
             self.position[i] += (
                 (aruco_position[i] - self.position[i]) * self.ACCELERATION * frame_time
             )

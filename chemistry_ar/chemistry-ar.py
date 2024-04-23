@@ -2,6 +2,7 @@ import os
 import cv2
 import moderngl_window as mglw
 import moderngl
+from moderngl_window.context.base.window import Tuple
 import numpy as np
 import camera
 from dotenv import load_dotenv
@@ -36,8 +37,10 @@ class ChemistryAR(mglw.WindowConfig):
             self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=1000.0
         )
 
-    def create_molecule(self, id: int, atoms: List[str]):
-        self.molecules[id] = Molecule(self.ctx, atoms, id, self.projection_matrix)
+    def create_molecule(self, id: int, position: np.ndarray, atoms: List[str]):
+        self.molecules[id] = Molecule(
+            self.ctx, atoms, id, position, self.projection_matrix
+        )
 
     def render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
@@ -75,12 +78,15 @@ class ChemistryAR(mglw.WindowConfig):
                     # rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
                     #     corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
                     # )
-                    if aruco_id not in self.molecules:
-                        self.create_molecule(aruco_id, ["H"])
-
                     self.view_matrix_dict[aruco_id] = camera.extrinsic2ModelView(
                         rvecs, tvecs, offset=1.0
                     )
+                    if aruco_id not in self.molecules:
+                        self.create_molecule(
+                            aruco_id,
+                            camera.extrinsic2Position(self.view_matrix_dict[aruco_id]),
+                            ["H"],
+                        )
                     if DEBUG:
                         cv2.drawFrameAxes(
                             frame,

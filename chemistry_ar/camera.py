@@ -135,3 +135,13 @@ def intrinsic2Project(
     P[3, 2] = -(2 * far_plane * near_plane) / (far_plane - near_plane)
 
     return P.flatten()
+
+
+def extrinsic2Position(matrix: MatLike) -> np.ndarray:
+    """[Get position from extrinsic matrix]
+    Arguments:
+        matrix {[MatLike]} -- [View matrix]
+    Returns:
+        np.ndarray -- [Position]
+    """
+    return matrix[12:15]
