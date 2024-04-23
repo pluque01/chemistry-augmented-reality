@@ -1,3 +1,4 @@
+import numpy as np
 from typing import List, Dict
 from shapes.sphere import Sphere
 
@@ -81,7 +82,6 @@ class Atom(Sphere):
         self.name = name
 
     def render(self, view_matrix):
-        print(f"Rendering {self.name}")
         super().render(view_matrix)
 
 
@@ -91,10 +91,27 @@ class Molecule:
         self.aruco = aruco
         self.projection_matrix = projection_matrix
         self.atoms = []
+
+        # Movement related
+        self.ACCELERATION = 2
+        self.position = [0.0, 0.0, 0.0]
+
         for atom in atoms:
             radius = registered_atoms[atom]
             self.atoms.append(Atom(ctx, atom, radius, projection_matrix))
 
-    def render(self, view_matrix):
+    def render(self, view_matrix: np.ndarray, frame_time: float):
+        # Get the 4th column of the view matrix
+        aruco_position = view_matrix[12:15]
+        for i in range(3):
+            self.position[i] += (
+                (aruco_position[i] - self.position[i]) * self.ACCELERATION * frame_time
+            )
+        new_position = np.copy(view_matrix)
+        new_position[12:15] = self.position
+
         for atom in self.atoms:
-            atom.render(view_matrix)
+            atom.render(new_position)
+
+    def set_aruco_position(self, position):
+        self.aruco_position = position

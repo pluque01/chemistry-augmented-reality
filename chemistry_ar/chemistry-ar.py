@@ -1,6 +1,7 @@
 import os
 import cv2
 import moderngl_window as mglw
+import moderngl
 import numpy as np
 import camera
 from dotenv import load_dotenv
@@ -8,7 +9,6 @@ from typing import List, Dict
 from molecule import Molecule
 
 from shapes.rectangle import Rectangle
-from shapes.sphere import Sphere
 
 load_dotenv()
 MARKER_SIZE = 0.48
@@ -33,7 +33,7 @@ class ChemistryAR(mglw.WindowConfig):
         self.aruco_params = cv2.aruco.DetectorParameters()
         self.aruco_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
         self.projection_matrix = camera.intrinsic2Project(
-            self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=10.0
+            self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=1000.0
         )
 
     def create_molecule(self, id: int, atoms: List[str]):
@@ -41,6 +41,7 @@ class ChemistryAR(mglw.WindowConfig):
 
     def render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
+        self.ctx.disable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
 
         ret, frame = self.cap.read()
         # Convertir a escala de grises para mejorar la detección
@@ -74,7 +75,6 @@ class ChemistryAR(mglw.WindowConfig):
                     # rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
                     #     corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
                     # )
-                    print(f"ID: {aruco_id}")
                     if aruco_id not in self.molecules:
                         self.create_molecule(aruco_id, ["H"])
 
@@ -97,10 +97,11 @@ class ChemistryAR(mglw.WindowConfig):
         # Dibuja el rectángulo
         self.background.render(frame.tobytes())
 
+        self.ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
+
         # Dibuja la esfera
         for index, m in self.molecules.items():
-            m.render(self.view_matrix_dict[index])
-        # self.sphere.render(view_matrix)
+            m.render(self.view_matrix_dict[index], frame_time)
 
     def close(self):
         self.cap.release()
