@@ -4,6 +4,8 @@ import moderngl_window as mglw
 import numpy as np
 import camera
 from dotenv import load_dotenv
+from typing import List, Dict
+from molecule import Molecule
 
 from shapes.rectangle import Rectangle
 from shapes.sphere import Sphere
@@ -21,8 +23,9 @@ class ChemistryAR(mglw.WindowConfig):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.sphere = None
-        self.rectangle = None
+        self.molecules: Dict[int, Molecule] = dict()
+        self.view_matrix_dict: Dict[int, np.ndarray] = dict()
+        self.background = Rectangle(self.ctx, self.wnd.width, self.wnd.height)
         self.cap = cv2.VideoCapture(cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -32,53 +35,71 @@ class ChemistryAR(mglw.WindowConfig):
             self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=10.0
         )
 
+    def create_molecule(self, id: int, atoms: List[str]):
+        self.molecules[id] = Molecule(self.ctx, atoms, id, self.projection_matrix)
+
     def render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
-
-        if not self.sphere:
-            print("Creating sphere")
-            self.sphere = Sphere(self.ctx, 0.3, self.projection_matrix)
-
-        if not self.rectangle:
-            print("Creating rectangle")
-            width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            self.rectangle = Rectangle(self.ctx, width, height)
 
         ret, frame = self.cap.read()
         # Convertir a escala de grises para mejorar la detección
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        view_matrix = np.empty((4, 4), dtype=np.float32)
         if ret:
             corners, ids, _ = cv2.aruco.detectMarkers(
                 frame_gray, self.aruco_dict, parameters=self.aruco_params
             )
-            if ids is not None:
-                rvecs, tvecs = camera.solvePnPAruco(
-                    corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
-                )
-                # rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
-                #     corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
-                # )
-                view_matrix = camera.extrinsic2ModelView(rvecs, tvecs, offset=1.0)
-                if DEBUG:
-                    cv2.drawFrameAxes(
-                        frame,
+            if ids is not None:  # Si se detectó algún marcador
+                for i in range(len(ids)):
+                    aruco_id = ids[i][0]
+                    rvecs, tvecs = camera.solvePnPAruco(
+                        corners[i], MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
+                    )
+                    imgpts, _ = cv2.projectPoints(
+                        np.array([0, 0, 0], dtype=np.float32),
+                        rvecs[0],
+                        tvecs[0],
                         camera.cameraMatrix,
                         camera.distCoeffs,
-                        rvecs,
-                        tvecs,
-                        0.1,
                     )
+                    cv2.putText(
+                        frame,
+                        f"Marcador {ids[i]}",
+                        tuple(imgpts[0][0][0:2].astype(int)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (0, 0, 255),
+                        2,
+                    )
+                    # rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
+                    #     corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
+                    # )
+                    print(f"ID: {aruco_id}")
+                    if aruco_id not in self.molecules:
+                        self.create_molecule(aruco_id, ["H"])
+
+                    self.view_matrix_dict[aruco_id] = camera.extrinsic2ModelView(
+                        rvecs, tvecs, offset=1.0
+                    )
+                    if DEBUG:
+                        cv2.drawFrameAxes(
+                            frame,
+                            camera.cameraMatrix,
+                            camera.distCoeffs,
+                            rvecs,
+                            tvecs,
+                            0.1,
+                        )
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.flip(frame, 0)
 
         # Dibuja el rectángulo
-        self.rectangle.render(frame.tobytes())
+        self.background.render(frame.tobytes())
 
         # Dibuja la esfera
-        self.sphere.render(view_matrix)
+        for index, m in self.molecules.items():
+            m.render(self.view_matrix_dict[index])
+        # self.sphere.render(view_matrix)
 
     def close(self):
         self.cap.release()
