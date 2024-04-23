@@ -31,6 +31,7 @@ class ChemistryAR(mglw.WindowConfig):
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
         self.aruco_params = cv2.aruco.DetectorParameters()
+        self.aruco_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
         self.projection_matrix = camera.intrinsic2Project(
             self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=10.0
         )
