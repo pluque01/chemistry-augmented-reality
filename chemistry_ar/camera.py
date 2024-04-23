@@ -60,6 +60,16 @@ def solvePnPAruco(corners, marker_size, mtx, distortion):
             useExtrinsicGuess=False,
             flags=cv2.SOLVEPNP_IPPE_SQUARE,
         )
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
+        r, t = cv2.solvePnPRefineLM(
+            marker_points,
+            corner,
+            mtx,
+            distortion,
+            r,
+            t,
+            criteria=criteria,
+        )
         rvecs = np.append(rvecs, r.reshape(1, 1, 3), axis=0)
         tvecs = np.append(tvecs, t.reshape(1, 1, 3), axis=0)
     return rvecs, tvecs
