@@ -91,6 +91,7 @@ def extrinsic2ModelView(RVEC: np.ndarray, TVEC: np.ndarray, offset=0.0) -> MatLi
     Rx = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
     offset_vector = np.array([[0], [0], [offset]])
     offset_vector = R @ offset_vector
+    print(offset_vector)
     TVEC = TVEC.flatten().reshape((3, 1))
     TVEC = TVEC + offset_vector
 
@@ -137,7 +138,7 @@ def intrinsic2Project(
     return P.flatten()
 
 
-def extrinsic2Position(matrix: MatLike) -> np.ndarray:
+def ModelView2Position(matrix: MatLike) -> np.ndarray:
     """[Get position from extrinsic matrix]
     Arguments:
         matrix {[MatLike]} -- [View matrix]

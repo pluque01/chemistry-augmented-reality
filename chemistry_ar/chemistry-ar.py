@@ -4,6 +4,7 @@ import moderngl_window as mglw
 import moderngl
 from moderngl_window.context.base.window import Tuple
 import numpy as np
+from numpy._typing import ArrayLike
 import camera
 from dotenv import load_dotenv
 from typing import List, Dict
@@ -25,7 +26,7 @@ class ChemistryAR(mglw.WindowConfig):
         super().__init__(**kwargs)
 
         self.molecules: Dict[int, Molecule] = dict()
-        self.view_matrix_dict: Dict[int, np.ndarray] = dict()
+        self.marker_pos: Dict[int, Tuple[np.ndarray, np.ndarray]] = dict()
         self.background = Rectangle(self.ctx, self.wnd.width, self.wnd.height)
         self.cap = cv2.VideoCapture(cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -37,9 +38,11 @@ class ChemistryAR(mglw.WindowConfig):
             self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=1000.0
         )
 
-    def create_molecule(self, id: int, position: np.ndarray, atoms: str):
+    def create_molecule(
+        self, id: int, marker_pos: Tuple[np.ndarray, np.ndarray], atoms: str
+    ):
         self.molecules[id] = Molecule(
-            self.ctx, atoms, id, position, self.projection_matrix
+            self.ctx, atoms, id, marker_pos, self.projection_matrix
         )
         # print(self.molecules[id].get_atom_coordinates())
 
@@ -79,13 +82,11 @@ class ChemistryAR(mglw.WindowConfig):
                     # rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
                     #     corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
                     # )
-                    self.view_matrix_dict[aruco_id] = camera.extrinsic2ModelView(
-                        rvecs, tvecs, offset=1.0
-                    )
+                    self.marker_pos[aruco_id] = (rvecs, tvecs)
                     if aruco_id not in self.molecules:
                         self.create_molecule(
                             aruco_id,
-                            camera.extrinsic2Position(self.view_matrix_dict[aruco_id]),
+                            self.marker_pos[aruco_id],
                             "OS(=O)(=O)O",
                         )
                     if DEBUG:
@@ -108,7 +109,7 @@ class ChemistryAR(mglw.WindowConfig):
 
         # Dibuja la esfera
         for index, m in self.molecules.items():
-            m.render(self.view_matrix_dict[index], frame_time)
+            m.render(self.marker_pos[index], frame_time)
 
     def close(self):
         self.cap.release()

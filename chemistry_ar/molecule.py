@@ -1,5 +1,5 @@
 import numpy as np
-
+from typing import Tuple
 from numpy._typing import ArrayLike
 from shapes.sphere import Sphere
 from rdkit import Chem
@@ -36,7 +36,7 @@ class Molecule:
         ctx,
         atoms: str,
         aruco: int,
-        position: np.ndarray,
+        marker_position: Tuple[np.ndarray, np.ndarray],
         projection_matrix,
     ):
         self.ctx = ctx
@@ -48,7 +48,9 @@ class Molecule:
 
         # Movement related
         self.ACCELERATION = 2
-        self.position = position
+        self.position = camera.ModelView2Position(
+            camera.extrinsic2ModelView(marker_position[0], marker_position[1], 1.0)
+        )
 
         for atom in self.get_atom_properties():
             print(f"Creating atom {atom[0]} at {atom[1]}")
@@ -63,14 +65,15 @@ class Molecule:
                 )
             )
 
-    def render(self, view_matrix: np.ndarray, frame_time: float):
+    def render(self, position: Tuple[np.ndarray, np.ndarray], frame_time: float):
         # Get the 4th column of the view matrix
-        aruco_position = camera.extrinsic2Position(view_matrix)
+        aruco_modelview = camera.extrinsic2ModelView(position[0], position[1], 1.0)
+        aruco_position = camera.ModelView2Position(aruco_modelview)
         for i in range(len(self.position)):
             self.position[i] += (
                 (aruco_position[i] - self.position[i]) * self.ACCELERATION * frame_time
             )
-        new_position = np.copy(view_matrix)
+        new_position = np.copy(aruco_modelview)
         new_position[12:15] = self.position
 
         for atom in self.atoms:
