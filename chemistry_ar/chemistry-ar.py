@@ -37,10 +37,11 @@ class ChemistryAR(mglw.WindowConfig):
             self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=1000.0
         )
 
-    def create_molecule(self, id: int, position: np.ndarray, atoms: List[str]):
+    def create_molecule(self, id: int, position: np.ndarray, atoms: str):
         self.molecules[id] = Molecule(
             self.ctx, atoms, id, position, self.projection_matrix
         )
+        # print(self.molecules[id].get_atom_coordinates())
 
     def render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
@@ -85,7 +86,7 @@ class ChemistryAR(mglw.WindowConfig):
                         self.create_molecule(
                             aruco_id,
                             camera.extrinsic2Position(self.view_matrix_dict[aruco_id]),
-                            ["H"],
+                            "OS(=O)(=O)O",
                         )
                     if DEBUG:
                         cv2.drawFrameAxes(
