@@ -38,28 +38,6 @@ class Sphere:
                 fragColor = color * (0.25 + abs(l) * 0.75);
             }
             """,
-            # fragment_shader="""
-            # #version 330
-            #
-            # in vec3 FragPos; // Posición del fragmento en coordenadas del mundo
-            # in vec3 normal; // Normal del fragmento
-            #
-            # out vec4 fragColor;
-            #
-            # void main()
-            # {
-            #     // normalizamos la normal
-            #     vec3 n = normalize(normal);
-            #
-            #     // Calculamos un factor que determina la mezcla de color entre rojo y azul
-            #     float mixFactor = (n.z + 1.0) / 2.0;
-            #
-            #     // Creamos el color mezclado entre rojo y azul
-            #     vec3 mixedColor = mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), mixFactor);
-            #
-            #     fragColor = vec4(mixedColor, 1.0);
-            # }
-            # """,
         )
 
         self.vao = geometry.sphere(radius=radius, sectors=32, rings=16)
