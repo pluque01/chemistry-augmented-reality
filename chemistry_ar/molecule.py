@@ -50,11 +50,11 @@ class Molecule:
         self.marker_extrinsics = marker_position
         self.projection_matrix = projection_matrix
         self.atoms = []
-        self.INITIAL_OFFSET = np.array([0.0, 0.0, 1.0])
 
         self.mol = Chem.MolFromSmiles(atoms)
 
         # Movement related
+        self.INITIAL_OFFSET = np.array([0.0, 0.0, 1.0])
         self.ACCELERATION = 2
         self.position = marker_position[1][0][0] + self.INITIAL_OFFSET
 
