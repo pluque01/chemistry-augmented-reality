@@ -75,23 +75,23 @@ def solvePnPAruco(corners, marker_size, mtx, distortion):
     return rvecs, tvecs
 
 
-def extrinsic2ModelView(RVEC: np.ndarray, TVEC: np.ndarray, offset=0.0) -> MatLike:
+def extrinsic2ModelView(
+    RVEC: np.ndarray, TVEC: np.ndarray, offset: np.ndarray = np.array([0.0, 0.0, 0.0])
+) -> MatLike:
     """[Get modelview matrix from RVEC and TVEC]
 
     Arguments:
         RVEC {[vector]} -- [Rotation vector]
         TVEC {[vector]} -- [Translation vector]
-
+    # TODO
     Keyword Arguments:
         offset {float} -- [Offset]
     """
-
     R, _ = cv2.Rodrigues(RVEC)
 
     Rx = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
-    offset_vector = np.array([[0], [0], [offset]])
+    offset_vector = offset.reshape((3, 1))
     offset_vector = R @ offset_vector
-    print(offset_vector)
     TVEC = TVEC.flatten().reshape((3, 1))
     TVEC = TVEC + offset_vector
 
@@ -146,3 +146,13 @@ def ModelView2Position(matrix: MatLike) -> np.ndarray:
         np.ndarray -- [Position]
     """
     return matrix[12:15]
+
+
+def CVPosition2GLPosition(ocv: np.ndarray) -> np.ndarray:
+    """[Convert OpenCV position to OpenGL position]
+    Arguments:
+        ocv {[np.ndarray]} -- [OpenCV position]
+    Returns:
+        np.ndarray -- [OpenGL position]
+    """
+    return np.array([ocv[0], -ocv[1], -ocv[2]])

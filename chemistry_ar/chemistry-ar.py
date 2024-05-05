@@ -26,7 +26,7 @@ class ChemistryAR(mglw.WindowConfig):
         super().__init__(**kwargs)
 
         self.molecules: Dict[int, Molecule] = dict()
-        self.marker_pos: Dict[int, Tuple[np.ndarray, np.ndarray]] = dict()
+        self.marker_extrinsics: Dict[int, Tuple[np.ndarray, np.ndarray]] = dict()
         self.background = Rectangle(self.ctx, self.wnd.width, self.wnd.height)
         self.cap = cv2.VideoCapture(cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -82,11 +82,11 @@ class ChemistryAR(mglw.WindowConfig):
                     # rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
                     #     corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
                     # )
-                    self.marker_pos[aruco_id] = (rvecs, tvecs)
+                    self.marker_extrinsics[aruco_id] = (rvecs, tvecs)
                     if aruco_id not in self.molecules:
                         self.create_molecule(
                             aruco_id,
-                            self.marker_pos[aruco_id],
+                            self.marker_extrinsics[aruco_id],
                             "OS(=O)(=O)O",
                         )
                     if DEBUG:
@@ -109,7 +109,8 @@ class ChemistryAR(mglw.WindowConfig):
 
         # Dibuja la esfera
         for index, m in self.molecules.items():
-            m.render(self.marker_pos[index], frame_time)
+            m.update_marker_extrinsics(self.marker_extrinsics[index])
+            m.render(frame_time)
 
     def close(self):
         self.cap.release()

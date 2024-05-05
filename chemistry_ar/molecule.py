@@ -16,18 +16,24 @@ class Atom(Sphere):
         ctx,
         name: str,
         radius: float,
-        position: ArrayLike,
+        offset: np.ndarray,
         color: ArrayLike,
         projection_matrix,
     ):
-        super().__init__(ctx, radius, position, color, projection_matrix)
+        super().__init__(ctx, radius, offset, color, projection_matrix)
         self.name = name
-        self.position = position
+        self.offset = offset
+        print("Atom position", self.offset[0], self.offset[1], self.offset[2])
 
-    def render(self, view_matrix):
-        new_position = np.copy(view_matrix)
-        new_position[12:15] += self.position
-        super().render(new_position)
+    def renderAtom(
+        self,
+        marker_extrinsics: Tuple[np.ndarray, np.ndarray],
+        molecule_position: np.ndarray,
+    ):
+        modelview_matrix = camera.extrinsic2ModelView(
+            marker_extrinsics[0], molecule_position, self.offset
+        )
+        super().render(modelview_matrix)
 
 
 class Molecule:
@@ -40,44 +46,44 @@ class Molecule:
         projection_matrix,
     ):
         self.ctx = ctx
-        self.aruco = aruco
+        self.marker_id = aruco
+        self.marker_extrinsics = marker_position
         self.projection_matrix = projection_matrix
         self.atoms = []
+        self.INITIAL_OFFSET = np.array([0.0, 0.0, 1.0])
 
         self.mol = Chem.MolFromSmiles(atoms)
 
         # Movement related
         self.ACCELERATION = 2
-        self.position = camera.ModelView2Position(
-            camera.extrinsic2ModelView(marker_position[0], marker_position[1], 1.0)
-        )
+        self.position = marker_position[1][0][0] + self.INITIAL_OFFSET
 
         for atom in self.get_atom_properties():
-            print(f"Creating atom {atom[0]} at {atom[1]}")
+            print("debug", atom[1][0], atom[1][1], atom[1][2])
+            atom_position = atom[1] * 0.1 + self.INITIAL_OFFSET
             self.atoms.append(
                 Atom(
                     ctx,
                     atom_data[atom[0]]["name"],
                     atom_data[atom[0]]["size"],
-                    atom[1] * 0.1,
+                    atom_position,
                     np.asarray(atom_data[atom[0]]["color"], np.float32) / 255.0,
                     projection_matrix,
                 )
             )
+            print(f"Created atom {atom[0]} at {atom_position}")
 
-    def render(self, position: Tuple[np.ndarray, np.ndarray], frame_time: float):
-        # Get the 4th column of the view matrix
-        aruco_modelview = camera.extrinsic2ModelView(position[0], position[1], 1.0)
-        aruco_position = camera.ModelView2Position(aruco_modelview)
-        for i in range(len(self.position)):
-            self.position[i] += (
-                (aruco_position[i] - self.position[i]) * self.ACCELERATION * frame_time
-            )
-        new_position = np.copy(aruco_modelview)
-        new_position[12:15] = self.position
+    def update_marker_extrinsics(self, new_extrinsics: Tuple[np.ndarray, np.ndarray]):
+        self.marker_extrinsics = new_extrinsics
 
+    def update_position(self, frame_time: float):
+        tvecs = self.marker_extrinsics[1][0][0]
+        self.position += (tvecs - self.position) * self.ACCELERATION * frame_time
+
+    def render(self, frame_time: float):
+        self.update_position(frame_time)
         for atom in self.atoms:
-            atom.render(new_position)
+            atom.renderAtom(self.marker_extrinsics, self.position)
 
     def set_aruco_position(self, position):
         self.aruco_position = position
