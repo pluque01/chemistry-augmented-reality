@@ -19,7 +19,7 @@ Chemistry-AR is an augmented reality application that allows you to visualize an
 1. Clone the repository:
 
     ```shell
-    git clone https://github.com/pluque01/chemistry-ar.git
+    git clone https://github.com/pluque01/chemistry-augmented-reality.git
     ```
 
 2. Install the required dependencies:
