@@ -57,29 +57,40 @@ def solvePnPAruco(corners, marker_size, mtx, distortion):
             corner,
             mtx,
             distortion,
-            useExtrinsicGuess=False,
+            useExtrinsicGuess=True,
             flags=cv2.SOLVEPNP_IPPE_SQUARE,
+        )
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
+        r, t = cv2.solvePnPRefineLM(
+            marker_points,
+            corner,
+            mtx,
+            distortion,
+            r,
+            t,
+            criteria=criteria,
         )
         rvecs = np.append(rvecs, r.reshape(1, 1, 3), axis=0)
         tvecs = np.append(tvecs, t.reshape(1, 1, 3), axis=0)
     return rvecs, tvecs
 
 
-def extrinsic2ModelView(RVEC: np.ndarray, TVEC: np.ndarray, offset=0.0) -> MatLike:
+def extrinsic2ModelView(
+    RVEC: np.ndarray, TVEC: np.ndarray, offset: np.ndarray = np.array([0.0, 0.0, 0.0])
+) -> MatLike:
     """[Get modelview matrix from RVEC and TVEC]
 
     Arguments:
         RVEC {[vector]} -- [Rotation vector]
         TVEC {[vector]} -- [Translation vector]
-
+    # TODO
     Keyword Arguments:
         offset {float} -- [Offset]
     """
-
     R, _ = cv2.Rodrigues(RVEC)
 
     Rx = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
-    offset_vector = np.array([[0], [0], [offset]])
+    offset_vector = offset.reshape((3, 1))
     offset_vector = R @ offset_vector
     TVEC = TVEC.flatten().reshape((3, 1))
     TVEC = TVEC + offset_vector
@@ -125,3 +136,23 @@ def intrinsic2Project(
     P[3, 2] = -(2 * far_plane * near_plane) / (far_plane - near_plane)
 
     return P.flatten()
+
+
+def ModelView2Position(matrix: MatLike) -> np.ndarray:
+    """[Get position from extrinsic matrix]
+    Arguments:
+        matrix {[MatLike]} -- [View matrix]
+    Returns:
+        np.ndarray -- [Position]
+    """
+    return matrix[12:15]
+
+
+def CVPosition2GLPosition(ocv: np.ndarray) -> np.ndarray:
+    """[Convert OpenCV position to OpenGL position]
+    Arguments:
+        ocv {[np.ndarray]} -- [OpenCV position]
+    Returns:
+        np.ndarray -- [OpenGL position]
+    """
+    return np.array([ocv[0], -ocv[1], -ocv[2]])

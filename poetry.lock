@@ -736,6 +736,44 @@ files = [
 visualization = ["pyglet"]
 
 [[package]]
+name = "rdkit"
+version = "2023.9.5"
+description = "A collection of chemoinformatics and machine-learning software written in C++ and Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "rdkit-2023.9.5-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:0cc1f623284962e5763bc0e67b1b4e9667a7bbd5e1ed22f205d2980100c2e779"},
+    {file = "rdkit-2023.9.5-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:de0a7162423fe33dcb588a2048829db81bfff929a206793e83a52292fb86be0f"},
+    {file = "rdkit-2023.9.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ef0b02d12b883fa3d09b82f75db1c8baea96f4a941a84402c90a9c51243a92c5"},
+    {file = "rdkit-2023.9.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9cf95598a285bd90fb730e5dbf5cc31407ce39e39638b667961e1bc024968aa1"},
+    {file = "rdkit-2023.9.5-cp310-cp310-win_amd64.whl", hash = "sha256:2a3f1363bfeb89862e15fd3f88bea4e4d5036c469d389f2b615f30783ff7d1fd"},
+    {file = "rdkit-2023.9.5-cp311-cp311-macosx_10_13_x86_64.whl", hash = "sha256:e7462b739d720bcb85cd0a633e5ae008ded73a38bbfa4302bea9e068a1bbe888"},
+    {file = "rdkit-2023.9.5-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:80ee3cbf31f1808cd18b0e442c2a2d75de0a9837bcb1ac8009c2280e35c8018a"},
+    {file = "rdkit-2023.9.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c56cef89057a83c4392d792c5e617b5bb0c2ad35ae2d7d2fec3cd77b2af94c3a"},
+    {file = "rdkit-2023.9.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1fc360a266b83c19c7dcf85b5c67dbe4372c1e0cb0cc2580f3b3cf6af6819a98"},
+    {file = "rdkit-2023.9.5-cp311-cp311-win_amd64.whl", hash = "sha256:fcf3a4447eff8abbd405029e840f2560f1773cde585af818a74947c5fba7e10f"},
+    {file = "rdkit-2023.9.5-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c03ddac22acaaff28f66091f8d31128c0734c1e4f97ea8cb8d85edeee3e16176"},
+    {file = "rdkit-2023.9.5-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:0c44d467f4a234a3682235a03825db916d35caeeaf7d2b0c73a6a5be85e0a476"},
+    {file = "rdkit-2023.9.5-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:04abe69371077a6daf419b6ed25c3ec86c8f858a468fb53508170467b799ef13"},
+    {file = "rdkit-2023.9.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0620912f43019986b859d0c1a63dbf2ff339264ce796483ad7fd01bcb1fa0634"},
+    {file = "rdkit-2023.9.5-cp312-cp312-win_amd64.whl", hash = "sha256:6f1cb9e295ebe77e8e70485adc78dda35c687bc3ac2063fb88202aba11148ae3"},
+    {file = "rdkit-2023.9.5-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:7b43a43fd819de90dc3c81ad10b0bb25351351b36b20e63b6af4efb3fb0f3e30"},
+    {file = "rdkit-2023.9.5-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:64c55039fd3861355176406c3385f5e81e17aefdfebd123e97909b63fc451dbc"},
+    {file = "rdkit-2023.9.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6859310b7b04c0e6b46bbaf68d9137079a857ca1afe2b2c3beadfa4724515536"},
+    {file = "rdkit-2023.9.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a7bfda62f45eec82527e501ce74f08d514c22fd925bbf9631189fbff41e6280b"},
+    {file = "rdkit-2023.9.5-cp38-cp38-win_amd64.whl", hash = "sha256:7e8078d01f4bb9aa77da5ef2087df1cbae6919de5b0f90b983ef920ec8792229"},
+    {file = "rdkit-2023.9.5-cp39-cp39-macosx_10_13_x86_64.whl", hash = "sha256:4b848fbdc44f26d817963f90389af55b294d6b9efd07f20146255443fbcf6718"},
+    {file = "rdkit-2023.9.5-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:443593f5e0ab119f09c63aed00b6739f5e6c8f617a0028e1e81036784fe96e47"},
+    {file = "rdkit-2023.9.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c267b5a6135b58c2cbd2846d61b4663b75496a883e1ccd46eb3bff1098f53bf7"},
+    {file = "rdkit-2023.9.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8a7b39f1a98505017d6dd6876a592449cf76d718f370efd00e0ca6d80479812c"},
+    {file = "rdkit-2023.9.5-cp39-cp39-win_amd64.whl", hash = "sha256:1b99cca22cad650392b25db1f8f86cae619fa62c6a710eb173d0e10faec9d2e5"},
+]
+
+[package.dependencies]
+numpy = "*"
+Pillow = "*"
+
+[[package]]
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
@@ -746,7 +784,18 @@ files = [
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
 ]
 
+[[package]]
+name = "toml"
+version = "0.10.2"
+description = "Python Library for Tom's Obvious, Minimal Language"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
+files = [
+    {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
+    {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
+]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "e93922198d4340112847b05f816c52d93ff87c4eb504f8f2a7a6d433209cb0ee"
+content-hash = "88f3987eaf1df6fb0159761dd9683796dfc7d87dcc6ccf6ae8c7eb707595a032"
