@@ -106,3 +106,7 @@ class Molecule:
             atom_position = conformer.GetAtomPosition(atom_index)
             atoms.append((atom_name, atom_position))
         return atoms
+
+    # TODO: Implement this function
+    def get_name(self) -> str:
+        return "Molecule"

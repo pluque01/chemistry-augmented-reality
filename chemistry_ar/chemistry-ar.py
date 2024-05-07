@@ -51,6 +51,7 @@ class ChemistryAR(mglw.WindowConfig):
                 )
             else:
                 self.markers[marker_id].update_marker_pos(marker_pos)
+                self.markers[marker_id].update_marker_state(MarkerState.ACTIVE)
 
         # Check if any marker is lost
         for marker_id, _ in self.markers.items():
@@ -63,6 +64,28 @@ class ChemistryAR(mglw.WindowConfig):
         for marker in self.markers.copy():
             if self.markers[marker].get_marker_state() == MarkerState.INACTIVE:
                 del self.markers[marker]
+
+    def draw_markers_text(self, frame):
+        for marker in self.markers:
+            if self.markers[marker].get_marker_state() == MarkerState.ACTIVE:
+                marker_extrinsics = self.markers[marker].get_marker_pos()
+                imgpts, _ = cv2.projectPoints(
+                    np.array([0, 0, 0], dtype=np.float32),
+                    marker_extrinsics[0][0],
+                    marker_extrinsics[1][0],
+                    camera.cameraMatrix,
+                    camera.distCoeffs,
+                )
+                cv2.putText(
+                    frame,
+                    self.markers[marker].get_molecule_name(),
+                    tuple(imgpts[0][0][0:2].astype(int)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 0, 255),
+                    2,
+                )
+        return frame
 
     def render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
@@ -82,25 +105,6 @@ class ChemistryAR(mglw.WindowConfig):
                     rvecs, tvecs = camera.solvePnPAruco(
                         corners[i], MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
                     )
-                    imgpts, _ = cv2.projectPoints(
-                        np.array([0, 0, 0], dtype=np.float32),
-                        rvecs[0],
-                        tvecs[0],
-                        camera.cameraMatrix,
-                        camera.distCoeffs,
-                    )
-                    cv2.putText(
-                        frame,
-                        f"Marcador {ids[i]}",
-                        tuple(imgpts[0][0][0:2].astype(int)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (0, 0, 255),
-                        2,
-                    )
-                    # rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
-                    #     corners, MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
-                    # )
                     frame_markers[aruco_id] = (rvecs, tvecs)
                     if DEBUG:
                         cv2.drawFrameAxes(
@@ -113,6 +117,7 @@ class ChemistryAR(mglw.WindowConfig):
                         )
 
             self.update_markers(frame_markers)
+            frame = self.draw_markers_text(frame)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.flip(frame, 0)
 

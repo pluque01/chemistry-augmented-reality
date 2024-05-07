@@ -17,6 +17,7 @@ class Marker:
         self.state = MarkerState.ACTIVE
         self.frames_lost = 0
         self.molecule = None
+        self.INACTIVE_THRESHOLD = 20
 
     def update_marker_pos(self, marker_pos: Tuple[np.ndarray, np.ndarray]):
         self.marker_pos = marker_pos
@@ -33,7 +34,7 @@ class Marker:
             self.state = MarkerState.ACTIVE
             self.frames_lost = 0
 
-        if self.frames_lost > 10:
+        if self.frames_lost > self.INACTIVE_THRESHOLD:
             self.state = MarkerState.INACTIVE
 
     def get_marker_pos(self):
@@ -62,3 +63,9 @@ class Marker:
         if self.molecule is not None:
             self.molecule.update_marker_extrinsics(self.marker_pos)
             self.molecule.render(frame_time)
+
+    def get_molecule_name(self) -> str:
+        if self.molecule is not None:
+            return self.molecule.get_name()
+        else:
+            return "No molecule created"
