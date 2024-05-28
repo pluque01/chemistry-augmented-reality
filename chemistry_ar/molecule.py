@@ -52,6 +52,8 @@ class Molecule:
         self.atoms = []
 
         self.mol = Chem.MolFromSmiles(atoms)
+        if self.mol is None:
+            raise ValueError(f"Invalid molecule: {atoms}")
 
         # Movement related
         self.INITIAL_OFFSET = np.array([0.0, 0.0, 1.0])

@@ -46,7 +46,7 @@ class ChemistryAR(mglw.WindowConfig):
                     self.ctx,
                     marker_id,
                     marker_pos,
-                    "OS(=O)(=O)O",
+                    "CC(=O)NCCC1=CNc2c1cc(OC)cc2",
                     self.projection_matrix,
                 )
             else:
