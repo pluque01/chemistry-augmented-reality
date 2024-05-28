@@ -1,0 +1,25 @@
+[[levels]]
+[levels.target]
+name = "Water"
+smiles = "O"
+
+[[levels.markers]]
+required = true
+[[levels.markers.atoms]]
+element = "O"
+count = 3
+
+[[levels.markers]]
+required = true
+[[levels.markers.atoms]]
+element = "H"
+count = 5
+[[levels.markers.atoms]]
+element = "O"
+count = 2
+
+[[levels.markers]]
+required = false
+[[levels.markers.atoms]]
+element = "C"
+count = 4

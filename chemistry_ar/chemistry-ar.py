@@ -5,9 +5,11 @@ import moderngl
 import numpy as np
 import camera
 from dotenv import load_dotenv
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 from molecule import Molecule
 from marker import Marker, MarkerState
+from levels import Level, LevelMarker
+
 
 from shapes.rectangle import Rectangle
 
@@ -24,8 +26,10 @@ class ChemistryAR(mglw.WindowConfig):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        self.level = None
         self.molecules: Dict[int, Molecule] = dict()
         self.markers: Dict[int, Marker] = dict()
+        self.level_markers: List[LevelMarker] = []
         self.background = Rectangle(self.ctx, self.wnd.width, self.wnd.height)
         self.cap = cv2.VideoCapture(cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -36,19 +40,25 @@ class ChemistryAR(mglw.WindowConfig):
         self.projection_matrix = camera.intrinsic2Project(
             self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=1000.0
         )
+        self.load_level(0)
+
+    def load_level(self, level_number: int):
+        self.level = Level(level_number)
+        self.level_markers = self.level.get_level_markers()
 
     def update_markers(self, frame_markers: Dict[int, Tuple[np.ndarray, np.ndarray]]):
         # Create and update the found markers
         for marker_id, marker_pos in frame_markers.items():
             if marker_id not in self.markers:
-                self.markers[marker_id] = Marker(marker_id, marker_pos)
-                self.markers[marker_id].create_molecule(
-                    self.ctx,
-                    marker_id,
-                    marker_pos,
-                    "CC(=O)NCCC1=CNc2c1cc(OC)cc2",
-                    self.projection_matrix,
+                self.markers[marker_id] = Marker(
+                    ctx=self.ctx,
+                    id=marker_id,
+                    marker_extrinsics=marker_pos,
+                    projection_matrix=self.projection_matrix,
+                    level_marker=self.level_markers.pop(),
                 )
+                # "CC(=O)NCCC1=CNc2c1cc(OC)cc2",
+                # self.markers[marker_id].create_molecule()
             else:
                 self.markers[marker_id].update_marker_pos(marker_pos)
                 self.markers[marker_id].update_marker_state(MarkerState.ACTIVE)
@@ -63,6 +73,8 @@ class ChemistryAR(mglw.WindowConfig):
         # Delete inactive markers
         for marker in self.markers.copy():
             if self.markers[marker].get_marker_state() == MarkerState.INACTIVE:
+                # Append the level marker back to the level markers list
+                self.level_markers.append(self.markers[marker].level_marker)
                 del self.markers[marker]
 
     def draw_markers_text(self, frame):
@@ -128,7 +140,7 @@ class ChemistryAR(mglw.WindowConfig):
 
         # Dibuja la esfera
         for _, marker in self.markers.items():
-            marker.render_molecule(frame_time)
+            marker.render(frame_time)
 
     def close(self):
         self.cap.release()

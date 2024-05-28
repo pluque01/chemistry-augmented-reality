@@ -6,6 +6,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import camera
 import toml
+import utils
 
 atom_data = toml.load("chemistry_ar/data/atoms.toml")
 
@@ -23,7 +24,7 @@ class Atom(Sphere):
         super().__init__(ctx, radius, offset, color, projection_matrix)
         self.name = name
         self.offset = offset
-        print("Atom position", self.offset[0], self.offset[1], self.offset[2])
+        # print("Atom position", self.offset[0], self.offset[1], self.offset[2])
 
     def renderAtom(
         self,
@@ -39,41 +40,73 @@ class Atom(Sphere):
 class Molecule:
     def __init__(
         self,
+        *,
         ctx,
-        atoms: str,
-        aruco: int,
+        name: str,
+        aruco_id: int,
         marker_position: Tuple[np.ndarray, np.ndarray],
         projection_matrix,
+        smiles: str = "",
+        marker_atoms=None,
     ):
         self.ctx = ctx
-        self.marker_id = aruco
+        self.name = name
+        self.marker_id = aruco_id
         self.marker_extrinsics = marker_position
-        self.projection_matrix = projection_matrix
         self.atoms = []
-
-        self.mol = Chem.MolFromSmiles(atoms)
-        if self.mol is None:
-            raise ValueError(f"Invalid molecule: {atoms}")
+        self.marker_atoms = marker_atoms
+        self.is_valid_molecule = False
 
         # Movement related
         self.INITIAL_OFFSET = np.array([0.0, 0.0, 1.0])
         self.ACCELERATION = 2
         self.position = marker_position[1][0][0] + self.INITIAL_OFFSET
 
-        for atom in self.get_atom_properties():
-            print("debug", atom[1][0], atom[1][1], atom[1][2])
-            atom_position = atom[1] * 0.1 + self.INITIAL_OFFSET
-            self.atoms.append(
-                Atom(
-                    ctx,
-                    atom_data[atom[0]]["name"],
-                    atom_data[atom[0]]["size"],
-                    atom_position,
-                    np.asarray(atom_data[atom[0]]["color"], np.float32) / 255.0,
-                    projection_matrix,
+        if smiles != "":
+            self.mol = Chem.MolFromSmiles(smiles)
+            if self.mol is None:
+                raise ValueError(f"Invalid molecule: {smiles}")
+            else:
+                self.is_valid_molecule = True
+        self.create_atoms(ctx, projection_matrix)
+
+    # TODO: Refactor this method to improve DRY
+    def create_atoms(self, ctx, projection_matrix):
+        if self.is_valid_molecule:
+            for atom in self.get_atom_properties():
+                atom_position = atom[1] * 0.1 + self.INITIAL_OFFSET
+                self.atoms.append(
+                    Atom(
+                        ctx,
+                        atom_data[atom[0]]["name"],
+                        atom_data[atom[0]]["size"],
+                        atom_position,
+                        np.asarray(atom_data[atom[0]]["color"], np.float32) / 255.0,
+                        projection_matrix,
+                    )
                 )
-            )
-            print(f"Created atom {atom[0]} at {atom_position}")
+        elif self.marker_atoms is not None:
+            number_of_atoms = sum([atom.count for atom in self.marker_atoms])
+            atom_positions = utils.circumference_points(1, number_of_atoms)
+            print("Atom positions", atom_positions[0])
+            i = 0
+            for atom in self.marker_atoms:
+                for _ in range(atom.count):
+                    self.atoms.append(
+                        Atom(
+                            ctx,
+                            atom_data[atom.element]["name"],
+                            atom_data[atom.element]["size"],
+                            atom_positions[i] * 0.2 + self.INITIAL_OFFSET,
+                            np.asarray(atom_data[atom.element]["color"], np.float32)
+                            / 255.0,
+                            projection_matrix,
+                        )
+                    )
+                    i += 1
+
+        else:
+            raise ValueError("No valid molecule or marker atoms")
 
     def update_marker_extrinsics(self, new_extrinsics: Tuple[np.ndarray, np.ndarray]):
         self.marker_extrinsics = new_extrinsics
@@ -111,4 +144,4 @@ class Molecule:
 
     # TODO: Implement this function
     def get_name(self) -> str:
-        return "Molecule"
+        return self.name
