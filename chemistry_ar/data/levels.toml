@@ -1,5 +1,6 @@
 [[levels]]
-[levels.target]
+# First level
+[levels.objective]
 name = "Water"
 smiles = "O"
 
@@ -7,16 +8,37 @@ smiles = "O"
 required = true
 [[levels.markers.atoms]]
 element = "O"
-count = 3
+count = 1
 
 [[levels.markers]]
 required = true
 [[levels.markers.atoms]]
 element = "H"
-count = 5
-[[levels.markers.atoms]]
-element = "O"
 count = 2
+
+[[levels.markers]]
+required = false
+[[levels.markers.atoms]]
+element = "C"
+count = 4
+
+# Second level
+[[levels]]
+[levels.objective]
+name = "Methane"
+smiles = "C"
+
+[[levels.markers]]
+required = true
+[[levels.markers.atoms]]
+element = "C"
+count = 1
+
+[[levels.markers]]
+required = true
+[[levels.markers.atoms]]
+element = "H"
+count = 4
 
 [[levels.markers]]
 required = false
