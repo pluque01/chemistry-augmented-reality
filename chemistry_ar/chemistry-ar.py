@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from typing import Dict, Tuple, List
 from molecule import Molecule
 from marker import Marker, MarkerState
-from levels import Level, LevelMarker
+from levels import GameLevels, LevelMarker
 
 
 from shapes.rectangle import Rectangle
@@ -26,7 +26,7 @@ class ChemistryAR(mglw.WindowConfig):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.level = None
+        self.game_levels = GameLevels()
         self.molecules: Dict[int, Molecule] = dict()
         self.markers: Dict[int, Marker] = dict()
         self.level_markers: List[LevelMarker] = []
@@ -42,9 +42,14 @@ class ChemistryAR(mglw.WindowConfig):
         )
         self.load_level(0)
 
-    def load_level(self, level_number: int):
-        self.level = Level(level_number)
-        self.level_markers = self.level.get_level_markers()
+    def load_level(self, level_number: int) -> None:
+        # Reset the markers
+        self.markers = dict()
+        self.game_levels.set_current_level(level_number)
+        self.level_markers = self.game_levels.get_current_level().get_markers()
+
+    def load_next_level(self) -> None:
+        self.load_level(self.game_levels.get_current_level_number() + 1)
 
     def update_markers(self, frame_markers: Dict[int, Tuple[np.ndarray, np.ndarray]]):
         # Create and update the found markers
@@ -99,6 +104,18 @@ class ChemistryAR(mglw.WindowConfig):
                 )
         return frame
 
+    def draw_objective_text(self, frame):
+        cv2.putText(
+            frame,
+            f"Objective: {self.game_levels.get_current_level().get_objective_name()}",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 0, 255),
+            2,
+        )
+        return frame
+
     def render(self, time: float, frame_time: float):
         self.ctx.clear(1.0, 1.0, 1.0)
         self.ctx.disable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
@@ -130,6 +147,7 @@ class ChemistryAR(mglw.WindowConfig):
 
             self.update_markers(frame_markers)
             frame = self.draw_markers_text(frame)
+            frame = self.draw_objective_text(frame)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = cv2.flip(frame, 0)
 
@@ -141,6 +159,12 @@ class ChemistryAR(mglw.WindowConfig):
         # Dibuja la esfera
         for _, marker in self.markers.items():
             marker.render(frame_time)
+
+    def key_event(self, key, action, modifiers):
+        # Key presses
+        if action == self.wnd.keys.ACTION_PRESS:
+            if key == self.wnd.keys.SPACE:
+                self.load_next_level()
 
     def close(self):
         self.cap.release()

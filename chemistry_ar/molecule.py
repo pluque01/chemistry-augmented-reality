@@ -88,7 +88,6 @@ class Molecule:
         elif self.marker_atoms is not None:
             number_of_atoms = sum([atom.count for atom in self.marker_atoms])
             atom_positions = utils.circumference_points(1, number_of_atoms)
-            print("Atom positions", atom_positions[0])
             i = 0
             for atom in self.marker_atoms:
                 for _ in range(atom.count):
@@ -142,6 +141,5 @@ class Molecule:
             atoms.append((atom_name, atom_position))
         return atoms
 
-    # TODO: Implement this function
     def get_name(self) -> str:
         return self.name
