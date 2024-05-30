@@ -1,19 +1,29 @@
 [H]
 name = "hydrogen"
 color = [0, 0, 255]
-size = 0.2
+size = 0.103
 
 [OS]
 name = "osmium"
 color = [0, 255, 0]
-size = 0.3
+size = 0.449
 
 [O]
 name = "oxygen"
 color = [255, 0, 0]
-size = 0.15
+size = 0.07
 
 [S]
 name = "sulfur"
 color = [255, 255, 0]
+size = 0.24
+
+[C]
+name = "carbon"
+color = [255, 255, 0]
+size = 0.14
+
+[N]
+name = "nitrogen"
+color = [255, 128, 0]
 size = 0.2
