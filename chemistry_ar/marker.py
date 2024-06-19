@@ -38,7 +38,9 @@ class Marker:
 
         self.INACTIVE_THRESHOLD = 20
 
-        self.create_molecule(marker_atoms=level_marker.atoms)
+        self.create_molecule(
+            name=self.level_marker.get_name(), marker_atoms=level_marker.atoms
+        )
         self.is_part_of_solution = level_marker.required
 
     def update_marker_pos(self, marker_pos: Tuple[np.ndarray, np.ndarray]):
@@ -68,10 +70,10 @@ class Marker:
     def get_frames_lost(self):
         return self.frames_lost
 
-    def create_molecule(self, smiles: str = "", marker_atoms=None):
+    def create_molecule(self, *, name: str, smiles: str = "", marker_atoms=None):
         self.molecule = Molecule(
             ctx=self.ctx,
-            name=self.level_marker.get_name(),
+            name=name,
             aruco_id=self.id,
             marker_position=self.marker_pos,
             projection_matrix=self.projection_matrix,
