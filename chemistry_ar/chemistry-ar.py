@@ -9,6 +9,7 @@ from typing import Dict, Tuple, List
 from molecule import Molecule
 from marker import Marker, MarkerState
 from levels import GameLevels, LevelMarker
+from cluster import Cluster
 
 
 from shapes.rectangle import Rectangle
@@ -22,6 +23,9 @@ class ChemistryAR(mglw.WindowConfig):
     title = "OpenGL Window"
     gl_version = (3, 3)
     resizable = False
+    CLUSTER_THRESHOLD = 1.6
+    LOOP_DELAY = 1.0
+    CLUSTER_VALID_SOLUTION = 5  # Seconds needed to merge into solution
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -29,6 +33,7 @@ class ChemistryAR(mglw.WindowConfig):
         self.game_levels = GameLevels()
         self.molecules: Dict[int, Molecule] = dict()
         self.markers: Dict[int, Marker] = dict()
+        self.clusters: Dict[int, List[int]] = {}
         self.level_markers: List[LevelMarker] = []
         self.background = Rectangle(self.ctx, self.wnd.width, self.wnd.height)
         self.cap = cv2.VideoCapture(cv2.CAP_DSHOW)
@@ -41,6 +46,10 @@ class ChemistryAR(mglw.WindowConfig):
             self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=1000.0
         )
         self.load_level(0)
+        self.level_completed = False
+
+        self.last_loop_time = 0.0
+        self.cluster_valid_solution_count = 0
 
     def load_level(self, level_number: int) -> None:
         # Reset the markers
@@ -49,19 +58,89 @@ class ChemistryAR(mglw.WindowConfig):
         self.level_markers = self.game_levels.get_current_level().get_markers()
 
     def load_next_level(self) -> None:
+        self.cluster_valid_solution_count = 0
+        self.level_completed = False
         self.load_level(self.game_levels.get_current_level_number() + 1)
+
+    def markers_distance(self, marker1: int, marker2: int):
+        marker1_pos = self.markers[marker1].get_marker_pos()
+        marker2_pos = self.markers[marker2].get_marker_pos()
+        return np.linalg.norm(marker1_pos[1][0] - marker2_pos[1][0])
+
+    def update_clusters(self) -> None:
+        self.clusters = {}
+        elements = list(self.markers.keys())
+        n = len(elements)
+        uf = Cluster(n)
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                if (
+                    self.markers_distance(elements[i], elements[j])
+                    <= self.CLUSTER_THRESHOLD
+                ):
+                    uf.union(i, j)
+
+        for i in range(n):
+            root = uf.find(i)
+            if root not in self.clusters:
+                self.clusters[root] = []
+            self.clusters[root].append(elements[i])
+
+    def find_solution_in_clusters(self) -> List[int] | None:
+        for cluster in self.clusters.values():
+            if (
+                len(cluster)
+                == self.game_levels.get_current_level().get_objetive_markers_amount()
+            ):
+                solution_found = True
+                for marker in cluster:
+                    if not self.markers[marker].is_part_of_solution:
+                        solution_found = False
+                        break
+                if solution_found:
+                    return cluster
+
+    def is_solution_in_clusters(self) -> bool:
+        if self.find_solution_in_clusters() is not None:
+            return True
+        return False
+
+    def check_solution(self) -> None:
+        self.update_clusters()
+
+        if self.is_solution_in_clusters():
+            self.cluster_valid_solution_count += 1
+            if self.cluster_valid_solution_count >= self.CLUSTER_VALID_SOLUTION:
+                print("Solution found!")
+                self.merge_into_molecule(self.find_solution_in_clusters())
+                self.level_completed = True
+        elif self.cluster_valid_solution_count > 0:
+            self.cluster_valid_solution_count = 0
+
+    def merge_into_molecule(self, cluster) -> None:
+        self.markers[cluster[0]].create_molecule(
+            name=self.game_levels.get_current_level().get_objective_name(),
+            smiles=self.game_levels.get_current_level().get_objective_smiles(),
+        )
+        for i in range(1, len(cluster)):
+            self.markers[cluster[i]].delete_molecule()
+
+        self.level_markers = []
 
     def update_markers(self, frame_markers: Dict[int, Tuple[np.ndarray, np.ndarray]]):
         # Create and update the found markers
         for marker_id, marker_pos in frame_markers.items():
             if marker_id not in self.markers:
-                self.markers[marker_id] = Marker(
-                    ctx=self.ctx,
-                    id=marker_id,
-                    marker_extrinsics=marker_pos,
-                    projection_matrix=self.projection_matrix,
-                    level_marker=self.level_markers.pop(),
-                )
+                # Only create a new marker when there are level markers available
+                if len(self.level_markers) > 0:
+                    self.markers[marker_id] = Marker(
+                        ctx=self.ctx,
+                        id=marker_id,
+                        marker_extrinsics=marker_pos,
+                        projection_matrix=self.projection_matrix,
+                        level_marker=self.level_markers.pop(),
+                    )
                 # "CC(=O)NCCC1=CNc2c1cc(OC)cc2",
                 # self.markers[marker_id].create_molecule()
             else:
@@ -79,7 +158,8 @@ class ChemistryAR(mglw.WindowConfig):
         for marker in self.markers.copy():
             if self.markers[marker].get_marker_state() == MarkerState.INACTIVE:
                 # Append the level marker back to the level markers list
-                self.level_markers.append(self.markers[marker].level_marker)
+                if not self.level_completed:
+                    self.level_markers.append(self.markers[marker].level_marker)
                 del self.markers[marker]
 
     def draw_markers_text(self, frame):
@@ -160,11 +240,22 @@ class ChemistryAR(mglw.WindowConfig):
         for _, marker in self.markers.items():
             marker.render(frame_time)
 
+        self.last_loop_time += frame_time
+        # Perform checks every LOOP_DELAY seconds
+        if self.last_loop_time >= self.LOOP_DELAY:
+            self.last_loop_time -= self.LOOP_DELAY
+            if not self.level_completed:
+                self.check_solution()
+
     def key_event(self, key, action, modifiers):
         # Key presses
         if action == self.wnd.keys.ACTION_PRESS:
             if key == self.wnd.keys.SPACE:
                 self.load_next_level()
+        if action == self.wnd.keys.ACTION_PRESS:
+            if key == self.wnd.keys.W:
+                self.update_clusters()
+                self.is_solution_in_clusters()
 
     def close(self):
         self.cap.release()
