@@ -58,12 +58,13 @@ class Molecule:
         self.is_valid_molecule = False
 
         # Movement related
-        self.INITIAL_OFFSET = np.array([0.0, 0.0, 1.0])
+        self.INITIAL_OFFSET = np.array([0.0, 0.0, 0.5])
         self.ACCELERATION = 2
         self.position = marker_position[1][0][0] + self.INITIAL_OFFSET
 
         if smiles != "":
             self.mol = Chem.MolFromSmiles(smiles)
+            self.mol = Chem.AddHs(self.mol)
             if self.mol is None:
                 raise ValueError(f"Invalid molecule: {smiles}")
             else:
