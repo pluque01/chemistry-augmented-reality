@@ -1,75 +1,67 @@
 import speech_recognition as sr
 import pyttsx3
-from threading import Thread, Event
+from threading import Thread
 
 
 class SpeechRecognizer:
-    def __init__(self):
+    def __init__(self, timeout=3, phrase_time_limit=5):
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
-        self.listening_thread = None
-        self.text = ""
-        self.stop_listening_flag = Event()
+        self.result = None
+        self.thread = None
         self.listening = False
-        self.response = False
+        self.timeout = timeout
+        self.phrase_time_limit = phrase_time_limit
 
-    def listen_once(self):
-        def callback(recognizer, audio):
-            try:
-                self.text = recognizer.recognize_google(audio)
-                self.response = True
-                print(f"Recognized text: {self.text}")
-            except sr.UnknownValueError:
-                print("Google Speech Recognition could not understand audio")
-            except sr.RequestError as e:
-                print(
-                    f"Could not request results from Google Speech Recognition service; {e}"
-                )
-            finally:
-                self.stop_listening_flag.set()
-
+    def _recognize_speech(self):
         with self.microphone as source:
+            print("Listening...")
             self.recognizer.adjust_for_ambient_noise(source)
-
-        self.listening = True
-        stop_listening = self.recognizer.listen_in_background(self.microphone, callback)
-
-        # Keep the thread alive until stop_listening_flag is set
-        while not self.stop_listening_flag.is_set():
-            continue
-        print("Trying to stop listening...")
-        stop_listening()
-        self.listening = False
-
-    def start_listening(self):
-        print("Listening...")
-        self.response = False
-        if not self.listening:
-            self.stop_listening_flag.clear()
-            self.listening_thread = Thread(target=self.listen_once)
-            self.listening_thread.start()
-
-    def stop_listening(self):
-        print("Stopped listening")
-        if self.listening_thread and self.listening:
-            self.stop_listening_flag.set()
-            self.listening_thread.join()
-            self.listening_thread = None
+            try:
+                audio = self.recognizer.listen(
+                    source,
+                    timeout=self.timeout,
+                    phrase_time_limit=self.phrase_time_limit,
+                )
+            except sr.WaitTimeoutError:
+                print("Listening timed out")
+                self.result = None
+                self.listening = False
+                return
+        try:
+            # Recognize speech using Google Web Speech API
+            response = self.recognizer.recognize_google(audio)
+            print(f"Recognized: {response}")
+            self.result = response.lower()
+        except sr.UnknownValueError:
+            print("Google Speech Recognition could not understand audio")
+            self.result = None
+        except sr.RequestError as e:
+            print(
+                f"Could not request results from Google Speech Recognition service; {e}"
+            )
+            self.result = None
+        finally:
             self.listening = False
 
-    def user_accepted(self) -> bool:
-        if self.text.lower() == "yes":
-            return True
-        elif self.text.lower() == "no":
-            return False
-        else:
-            return False
+    def listen(self):
+        if self.listening:
+            print("Already listening...")
+            return
+        self.listening = True
+        self.thread = Thread(target=self._recognize_speech)
+        self.thread.start()
 
-    def get_text(self):
-        return self.text
+    def user_accepted(self):
+        if self.result is not None:
+            return self.result == "yes"
+        return None
+
+    def is_listening(self):
+        return self.listening
 
     def close(self):
-        self.stop_listening()
+        self.thread.join()
         self.recognizer = None
         self.microphone = None
 
