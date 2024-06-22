@@ -33,12 +33,14 @@ class Marker:
         self.state = MarkerState.ACTIVE
         self.frames_lost = 0
         self.molecule = None
+        self.atoms = None
         self.projection_matrix = projection_matrix
         self.level_marker = level_marker
+        self.is_merged = False
 
         self.INACTIVE_THRESHOLD = 20
 
-        self.create_molecule(
+        self.create_atoms(
             name=self.level_marker.get_name(), marker_atoms=level_marker.atoms
         )
         self.is_part_of_solution = level_marker.required
@@ -70,7 +72,7 @@ class Marker:
     def get_frames_lost(self):
         return self.frames_lost
 
-    def create_molecule(self, *, name: str, smiles: str = "", marker_atoms=None):
+    def create_molecule(self, *, name: str, smiles: str = ""):
         self.molecule = Molecule(
             ctx=self.ctx,
             name=name,
@@ -78,23 +80,50 @@ class Marker:
             marker_position=self.marker_pos,
             projection_matrix=self.projection_matrix,
             smiles=smiles,
+        )
+
+    def create_atoms(self, *, name: str, marker_atoms=None):
+        self.atoms = Molecule(
+            ctx=self.ctx,
+            name=name,
+            aruco_id=self.id,
+            marker_position=self.marker_pos,
+            projection_matrix=self.projection_matrix,
             marker_atoms=marker_atoms,
         )
 
     def delete_molecule(self):
         self.molecule = None
 
-    def render_molecule(self, frame_time: float):
+    def delete_atoms(self):
+        self.atoms = None
+
+    def delete(self):
         if self.molecule is not None:
-            self.molecule.update_marker_extrinsics(self.marker_pos)
-            self.molecule.render(frame_time)
+            self.delete_molecule()
+        elif self.atoms is not None:
+            self.delete_atoms()
+
+    def render_molecule(self, frame_time: float):
+        self.molecule.update_marker_extrinsics(self.marker_pos)
+        self.molecule.render(frame_time)
+
+    def render_atoms(self, frame_time: float):
+        self.atoms.update_marker_extrinsics(self.marker_pos)
+        self.atoms.render(frame_time)
 
     def render(self, frame_time: float):
         if self.molecule is not None:
             self.render_molecule(frame_time)
+        elif self.atoms is not None and not self.is_merged:
+            self.render_atoms(frame_time)
 
     def get_molecule_name(self) -> str:
         if self.molecule is not None:
             return self.molecule.get_name()
+        elif self.is_merged:
+            return ""
+        elif self.atoms is not None:
+            return self.atoms.get_name()
         else:
             return "No molecule created"

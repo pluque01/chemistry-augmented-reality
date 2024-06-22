@@ -26,7 +26,7 @@ class ChemistryAR(mglw.WindowConfig):
     resizable = False
     CLUSTER_THRESHOLD = 1.6
     LOOP_DELAY = 1.0
-    CLUSTER_VALID_SOLUTION = 5  # Seconds needed to merge into solution
+    CLUSTER_VALID_SOLUTION = 3  # Seconds needed to merge into solution
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -51,8 +51,10 @@ class ChemistryAR(mglw.WindowConfig):
 
         self.last_loop_time = 0.0
         self.cluster_valid_solution_count = 0
+        self.merged_molecule_cluster = []
         self.recognizer = SpeechRecognizer()
         self.ask_for_next_level = False
+        self.listening_started = False
 
     def load_level(self, level_number: int) -> None:
         # Reset the markers
@@ -112,25 +114,50 @@ class ChemistryAR(mglw.WindowConfig):
     def check_solution(self) -> None:
         self.update_clusters()
 
-        if self.is_solution_in_clusters():
-            self.cluster_valid_solution_count += 1
-            if self.cluster_valid_solution_count >= self.CLUSTER_VALID_SOLUTION:
-                print("Solution found!")
-                TTS("Solution found! Want to proceed to the next level? Say yes or no")
-                self.merge_into_molecule(self.find_solution_in_clusters())
-                self.level_completed = True
-        elif self.cluster_valid_solution_count > 0:
-            self.cluster_valid_solution_count = 0
+        if not self.level_completed:
+            if self.is_solution_in_clusters():
+                self.cluster_valid_solution_count += 1
+                if self.cluster_valid_solution_count >= self.CLUSTER_VALID_SOLUTION:
+                    self.level_completed = True
+                    self.ask_for_next_level = True
+                    self.cluster_valid_solution_count = 0
+                    print("Solution found!")
+                    TTS(
+                        "Solution found! Want to proceed to the next level? Say yes or no"
+                    )
+                    self.merge_into_molecule(self.find_solution_in_clusters())
+            elif self.cluster_valid_solution_count > 0:
+                self.cluster_valid_solution_count = 0
+        else:
+            if not self.is_solution_in_clusters():
+                self.cluster_valid_solution_count += 1
+                if self.cluster_valid_solution_count >= self.CLUSTER_VALID_SOLUTION:
+                    self.unmerge_molecule(self.merged_molecule_cluster)
+                    self.level_completed = False
+            elif self.cluster_valid_solution_count > 0:
+                self.cluster_valid_solution_count = 0
 
     def merge_into_molecule(self, cluster) -> None:
         self.markers[cluster[0]].create_molecule(
             name=self.game_levels.get_current_level().get_objective_name(),
             smiles=self.game_levels.get_current_level().get_objective_smiles(),
         )
+        self.markers[cluster[0]].is_merged = True
         for i in range(1, len(cluster)):
-            self.markers[cluster[i]].delete_molecule()
+            # self.markers[cluster[i]].delete_molecule()
+            self.markers[cluster[i]].is_merged = True
 
         self.level_markers = []
+
+        self.merged_molecule_cluster = cluster
+
+    def unmerge_molecule(self, cluster) -> None:
+        self.markers[cluster[0]].delete()
+        self.markers[cluster[0]].is_merged = False
+        for i in range(1, len(cluster)):
+            self.markers[cluster[i]].is_merged = False
+
+        self.merged_molecule_cluster = []
 
     def update_markers(self, frame_markers: Dict[int, Tuple[np.ndarray, np.ndarray]]):
         # Create and update the found markers
@@ -156,14 +183,13 @@ class ChemistryAR(mglw.WindowConfig):
             if marker_id not in frame_markers:
                 self.markers[marker_id].update_marker_state(MarkerState.NOT_FOUND)
                 if self.markers[marker_id].get_marker_state() == MarkerState.INACTIVE:
-                    self.markers[marker_id].delete_molecule()
+                    self.markers[marker_id].delete()
 
         # Delete inactive markers
         for marker in self.markers.copy():
             if self.markers[marker].get_marker_state() == MarkerState.INACTIVE:
                 # Append the level marker back to the level markers list
-                if not self.level_completed:
-                    self.level_markers.append(self.markers[marker].level_marker)
+                self.level_markers.append(self.markers[marker].level_marker)
                 del self.markers[marker]
 
     def draw_markers_text(self, frame):
@@ -248,15 +274,16 @@ class ChemistryAR(mglw.WindowConfig):
         # Perform checks every LOOP_DELAY seconds
         if self.last_loop_time >= self.LOOP_DELAY:
             self.last_loop_time -= self.LOOP_DELAY
-            if not self.level_completed:
-                self.check_solution()
-                if self.level_completed:
-                    self.recognizer.start_listening()
-                    self.ask_for_next_level = True
+            self.check_solution()
             if self.ask_for_next_level:
-                if self.recognizer.response:
-                    print("Checking response...")
+                if not self.listening_started:
+                    self.recognizer.listen()
+                    self.listening_started = True
+
+                if self.listening_started and not self.recognizer.is_listening():
                     self.ask_for_next_level = False
+                    self.listening_started = False
+                    print("Checking response...")
                     if self.recognizer.user_accepted():
                         print("Loading next level...")
                         self.load_next_level()

@@ -124,7 +124,6 @@ class Molecule:
         self.aruco_position = position
 
     def get_atom_properties(self):
-        print(self.mol.GetNumAtoms())
         # Generate 3D coordinates
         AllChem.EmbedMolecule(self.mol)
         AllChem.MMFFOptimizeMolecule(self.mol)
