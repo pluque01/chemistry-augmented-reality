@@ -18,6 +18,9 @@ python-dotenv = "^1.0.1"
 rdkit = "^2023.9.5"
 toml = "^0.10.2"
 pyyaml = "^6.0.1"
+speechrecognition = "^3.10.4"
+pyaudio = "^0.2.14"
+pyttsx3 = "^2.90"
 
 
 [build-system]

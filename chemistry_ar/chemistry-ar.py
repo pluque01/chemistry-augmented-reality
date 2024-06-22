@@ -10,6 +10,7 @@ from molecule import Molecule
 from marker import Marker, MarkerState
 from levels import GameLevels, LevelMarker
 from cluster import Cluster
+from speech import TTS, SpeechRecognizer
 
 
 from shapes.rectangle import Rectangle
@@ -50,6 +51,8 @@ class ChemistryAR(mglw.WindowConfig):
 
         self.last_loop_time = 0.0
         self.cluster_valid_solution_count = 0
+        self.recognizer = SpeechRecognizer()
+        self.ask_for_next_level = False
 
     def load_level(self, level_number: int) -> None:
         # Reset the markers
@@ -113,6 +116,7 @@ class ChemistryAR(mglw.WindowConfig):
             self.cluster_valid_solution_count += 1
             if self.cluster_valid_solution_count >= self.CLUSTER_VALID_SOLUTION:
                 print("Solution found!")
+                TTS("Solution found! Want to proceed to the next level? Say yes or no")
                 self.merge_into_molecule(self.find_solution_in_clusters())
                 self.level_completed = True
         elif self.cluster_valid_solution_count > 0:
@@ -246,6 +250,16 @@ class ChemistryAR(mglw.WindowConfig):
             self.last_loop_time -= self.LOOP_DELAY
             if not self.level_completed:
                 self.check_solution()
+                if self.level_completed:
+                    self.recognizer.start_listening()
+                    self.ask_for_next_level = True
+            if self.ask_for_next_level:
+                if self.recognizer.response:
+                    print("Checking response...")
+                    self.ask_for_next_level = False
+                    if self.recognizer.user_accepted():
+                        print("Loading next level...")
+                        self.load_next_level()
 
     def key_event(self, key, action, modifiers):
         # Key presses
@@ -259,6 +273,7 @@ class ChemistryAR(mglw.WindowConfig):
 
     def close(self):
         self.cap.release()
+        self.recognizer.close()
         cv2.destroyAllWindows()
         super().close()
 
