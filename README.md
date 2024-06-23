@@ -2,6 +2,8 @@
 
 Chemistry-AR is an augmented reality application that allows you to visualize and interact with chemical molecules using ArUco markers. You are given a set of atoms and your objective is to create the specified molecule. 
 
+The documentation in Spanish can be read [here](QuimicAR.pdf).
+
 ## Features
 
 - Real-time detection of markers using OpenCV and ArUco markers
