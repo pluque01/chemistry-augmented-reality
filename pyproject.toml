@@ -27,3 +27,7 @@ face-recognition = "^1.3.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry-auto-export]
+output = "requirements.txt"
+without_hashes = true
