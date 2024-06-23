@@ -241,6 +241,15 @@ class ChemistryAR(mglw.WindowConfig):
             (255, 0, 0),
             2,
         )
+        cv2.putText(
+            frame,
+            f"Required markers: {self.game_levels.get_current_level().get_number_of_markers()}",
+            (10, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 0, 0),
+            2,
+        )
         return frame
 
     def render(self, time: float, frame_time: float):
@@ -300,7 +309,7 @@ class ChemistryAR(mglw.WindowConfig):
                 self.check_solution()
                 if self.ask_for_next_level:
                     if not self.listening_started:
-                        self.recognizer.listen(delay=4)
+                        self.recognizer.listen(delay=6)
                         self.listening_started = True
 
                     if self.listening_started and not self.recognizer.is_listening():

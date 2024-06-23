@@ -7,9 +7,11 @@ class Level:
         self.level_markers = self.get_marker_data(level_data["markers"])
         self.level_objective = level_data["objective"]
         self.markers_for_solution = 0
+        self.number_of_markers = 0
         for m in self.level_markers:
             if m.required:
                 self.markers_for_solution += 1
+            self.number_of_markers += 1
 
     def get_marker_data(self, markers) -> list:
         marker_list = []
@@ -28,6 +30,9 @@ class Level:
 
     def get_objetive_markers_amount(self):
         return self.markers_for_solution
+
+    def get_number_of_markers(self):
+        return self.number_of_markers
 
 
 class LevelMarker:
