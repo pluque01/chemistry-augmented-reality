@@ -288,7 +288,6 @@ class ChemistryAR(mglw.WindowConfig):
                         self.face_location = locations[0]
                     else:
                         self.face_location = None
-                    print(self.face_location)
                     if self.face_location is not None:
                         user = self.db.recognize_user(small_frame, [self.face_location])
                         if user is None:
