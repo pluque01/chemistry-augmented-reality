@@ -4,6 +4,7 @@ import moderngl_window as mglw
 import moderngl
 import numpy as np
 import camera
+import face_recognition
 from dotenv import load_dotenv
 from typing import Dict, Tuple, List
 from molecule import Molecule
@@ -11,19 +12,19 @@ from marker import Marker, MarkerState
 from levels import GameLevels, LevelMarker
 from cluster import Cluster
 from speech import TTS, SpeechRecognizer
-
-
+from users.db import DatabaseManager
 from shapes.rectangle import Rectangle
 
 load_dotenv()
-MARKER_SIZE = 0.48
-DEBUG = os.environ.get("DEBUG", False)
 
 
 class ChemistryAR(mglw.WindowConfig):
     title = "OpenGL Window"
     gl_version = (3, 3)
     resizable = False
+
+    MARKER_SIZE = 0.48
+    DEBUG = os.environ.get("DEBUG", False)
     CLUSTER_THRESHOLD = 1.6
     LOOP_DELAY = 1.0
     CLUSTER_VALID_SOLUTION = 3  # Seconds needed to merge into solution
@@ -46,7 +47,6 @@ class ChemistryAR(mglw.WindowConfig):
         self.projection_matrix = camera.intrinsic2Project(
             self.wnd.width, self.wnd.height, near_plane=1.0, far_plane=1000.0
         )
-        self.load_level(0)
         self.level_completed = False
 
         self.last_loop_time = 0.0
@@ -55,17 +55,34 @@ class ChemistryAR(mglw.WindowConfig):
         self.recognizer = SpeechRecognizer()
         self.ask_for_next_level = False
         self.listening_started = False
+        self.user_logged_in = False
+        self.face_location = None
+        self.register_user = False
+        self.face_code = None
+        self.user = None
+
+        self.db = DatabaseManager()
 
     def load_level(self, level_number: int) -> None:
         # Reset the markers
         self.markers = dict()
         self.game_levels.set_current_level(level_number)
         self.level_markers = self.game_levels.get_current_level().get_markers()
+        if self.user is not None:
+            self.user.level = level_number
+            self.db.save_database()
 
     def load_next_level(self) -> None:
         self.cluster_valid_solution_count = 0
         self.level_completed = False
-        self.load_level(self.game_levels.get_current_level_number() + 1)
+        if (
+            self.game_levels.get_current_level_number() + 2
+            > self.game_levels.get_number_of_levels()
+        ):
+            TTS("You have completed all levels. Congratulations!")
+            self.load_level(0)
+        else:
+            self.load_level(self.game_levels.get_current_level_number() + 1)
 
     def markers_distance(self, marker1: int, marker2: int):
         marker1_pos = self.markers[marker1].get_marker_pos()
@@ -209,7 +226,7 @@ class ChemistryAR(mglw.WindowConfig):
                     tuple(imgpts[0][0][0:2].astype(int)),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
-                    (0, 0, 255),
+                    (255, 0, 0),
                     2,
                 )
         return frame
@@ -221,7 +238,7 @@ class ChemistryAR(mglw.WindowConfig):
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             1,
-            (0, 0, 255),
+            (255, 0, 0),
             2,
         )
         return frame
@@ -231,72 +248,126 @@ class ChemistryAR(mglw.WindowConfig):
         self.ctx.disable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
 
         ret, frame = self.cap.read()
-        # Convertir a escala de grises para mejorar la detección
-        frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        if ret:
-            corners, ids, _ = cv2.aruco.detectMarkers(
-                frame_gray, self.aruco_dict, parameters=self.aruco_params
-            )
-            frame_markers = dict()
-            if ids is not None:  # Si se detectó algún marcador
-                for i in range(len(ids)):
-                    aruco_id = ids[i][0]
-                    rvecs, tvecs = camera.solvePnPAruco(
-                        corners[i], MARKER_SIZE, camera.cameraMatrix, camera.distCoeffs
-                    )
-                    frame_markers[aruco_id] = (rvecs, tvecs)
-                    if DEBUG:
-                        cv2.drawFrameAxes(
-                            frame,
-                            camera.cameraMatrix,
-                            camera.distCoeffs,
-                            rvecs,
-                            tvecs,
-                            0.1,
-                        )
-
-            self.update_markers(frame_markers)
-            frame = self.draw_markers_text(frame)
-            frame = self.draw_objective_text(frame)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = cv2.flip(frame, 0)
-
-        # Dibuja el rectángulo
-        self.background.render(frame.tobytes())
-
-        self.ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
-
-        # Dibuja la esfera
-        for _, marker in self.markers.items():
-            marker.render(frame_time)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         self.last_loop_time += frame_time
         # Perform checks every LOOP_DELAY seconds
         if self.last_loop_time >= self.LOOP_DELAY:
             self.last_loop_time -= self.LOOP_DELAY
-            self.check_solution()
-            if self.ask_for_next_level:
-                if not self.listening_started:
-                    self.recognizer.listen()
-                    self.listening_started = True
 
-                if self.listening_started and not self.recognizer.is_listening():
-                    self.ask_for_next_level = False
-                    self.listening_started = False
-                    print("Checking response...")
-                    if self.recognizer.user_accepted():
-                        print("Loading next level...")
-                        self.load_next_level()
+            # USER RECOGNITION
+            if not self.user_logged_in:
+                if self.register_user:
+                    if self.listening_started and not self.recognizer.is_listening():
+                        self.register_user = False
+                        self.listening_started = False
+                        if self.recognizer.get_result() is not None:
+                            name = self.recognizer.get_result()
+                            self.user = self.db.add_user(name, self.face_code)
+                            self.user_logged_in = True
+                            self.load_level(self.user.level)
+                        else:
+                            TTS("User registration failed. Please try again.")
+                            self.register_user = True
+                            self.recognizer.listen(delay=4)
+                            self.listening_started = True
+                else:
+                    # Resize frame to improve performance
+                    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+                    locations = face_recognition.face_locations(small_frame)
+                    if locations != []:
+                        self.face_location = locations[0]
+                    else:
+                        self.face_location = None
+                    print(self.face_location)
+                    if self.face_location is not None:
+                        user = self.db.recognize_user(small_frame, [self.face_location])
+                        if user is None:
+                            self.register_user = True
+                            self.face_code = face_recognition.face_encodings(
+                                small_frame, [self.face_location]
+                            )[0]
+                            TTS("User not recognized. Please register.")
+                            self.recognizer.listen(delay=4)
+                            self.listening_started = True
+                        else:
+                            self.user = user
+                            self.user_logged_in = True
+                            TTS(f"Welcome back {self.user.name}")
+                            self.load_level(self.user.level)
+
+            else:
+                self.check_solution()
+                if self.ask_for_next_level:
+                    if not self.listening_started:
+                        self.recognizer.listen(delay=4)
+                        self.listening_started = True
+
+                    if self.listening_started and not self.recognizer.is_listening():
+                        self.ask_for_next_level = False
+                        self.listening_started = False
+                        print("Checking response...")
+                        if self.recognizer.user_accepted():
+                            print("Loading next level...")
+                            self.load_next_level()
+
+        if not self.user_logged_in:
+            frame = cv2.flip(frame, 0)
+            self.background.render(frame.tobytes())
+        else:
+            # Convertir a escala de grises para mejorar la detección
+            frame_gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+            if ret:
+                corners, ids, _ = cv2.aruco.detectMarkers(
+                    frame_gray, self.aruco_dict, parameters=self.aruco_params
+                )
+                frame_markers = dict()
+                if ids is not None:  # Si se detectó algún marcador
+                    for i in range(len(ids)):
+                        aruco_id = ids[i][0]
+                        rvecs, tvecs = camera.solvePnPAruco(
+                            corners[i],
+                            self.MARKER_SIZE,
+                            camera.cameraMatrix,
+                            camera.distCoeffs,
+                        )
+                        frame_markers[aruco_id] = (rvecs, tvecs)
+                        if self.DEBUG:
+                            cv2.drawFrameAxes(
+                                frame,
+                                camera.cameraMatrix,
+                                camera.distCoeffs,
+                                rvecs,
+                                tvecs,
+                                0.1,
+                            )
+
+                self.update_markers(frame_markers)
+                frame = self.draw_markers_text(frame)
+                frame = self.draw_objective_text(frame)
+                frame = cv2.flip(frame, 0)
+
+            # Render the background
+            self.background.render(frame.tobytes())
+
+            # After the background is rendered, enable depth test and cull face
+            # This is so the atoms are always rendered on top of the background
+            self.ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
+
+            # Render the markers
+            for _, marker in self.markers.items():
+                marker.render(frame_time)
 
     def key_event(self, key, action, modifiers):
-        # Key presses
-        if action == self.wnd.keys.ACTION_PRESS:
-            if key == self.wnd.keys.SPACE:
-                self.load_next_level()
-        if action == self.wnd.keys.ACTION_PRESS:
-            if key == self.wnd.keys.W:
-                self.update_clusters()
-                self.is_solution_in_clusters()
+        # Key presses only work in debug mode
+        if self.DEBUG:
+            if action == self.wnd.keys.ACTION_PRESS:
+                if key == self.wnd.keys.SPACE:
+                    self.load_next_level()
+            if action == self.wnd.keys.ACTION_PRESS:
+                if key == self.wnd.keys.W:
+                    self.update_clusters()
+                    self.is_solution_in_clusters()
 
     def close(self):
         self.cap.release()

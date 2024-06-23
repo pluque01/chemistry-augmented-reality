@@ -21,6 +21,7 @@ pyyaml = "^6.0.1"
 speechrecognition = "^3.10.4"
 pyaudio = "^0.2.14"
 pyttsx3 = "^2.90"
+face-recognition = "^1.3.0"
 
 
 [build-system]
