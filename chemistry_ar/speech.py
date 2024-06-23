@@ -1,3 +1,4 @@
+import time
 import speech_recognition as sr
 import pyttsx3
 from threading import Thread
@@ -13,7 +14,8 @@ class SpeechRecognizer:
         self.timeout = timeout
         self.phrase_time_limit = phrase_time_limit
 
-    def _recognize_speech(self):
+    def _recognize_speech(self, delay):
+        time.sleep(delay)
         with self.microphone as source:
             print("Listening...")
             self.recognizer.adjust_for_ambient_noise(source)
@@ -44,12 +46,12 @@ class SpeechRecognizer:
         finally:
             self.listening = False
 
-    def listen(self):
+    def listen(self, *, delay=0.5):
         if self.listening:
             print("Already listening...")
             return
         self.listening = True
-        self.thread = Thread(target=self._recognize_speech)
+        self.thread = Thread(target=self._recognize_speech, args=(delay,))
         self.thread.start()
 
     def user_accepted(self):
@@ -57,11 +59,15 @@ class SpeechRecognizer:
             return self.result == "yes"
         return None
 
+    def get_result(self):
+        return self.result
+
     def is_listening(self):
         return self.listening
 
     def close(self):
-        self.thread.join()
+        if self.thread is not None:
+            self.thread.join()
         self.recognizer = None
         self.microphone = None
 
