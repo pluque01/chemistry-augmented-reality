@@ -17,6 +17,23 @@ levels:
             count: 4
 
   - objective:
+      name: "Hydrogen Peroxide"
+      smiles: "OO"
+    markers:
+      - required: true
+        atoms:
+          - element: "O"
+            count: 2
+      - required: true
+        atoms:
+          - element: "H"
+            count: 2
+      - required: false
+        atoms:
+          - element: "C"
+            count: 1
+
+  - objective:
       name: "Methane"
       smiles: "C"
     markers:
@@ -32,3 +49,41 @@ levels:
         atoms:
           - element: "C"
             count: 4
+
+  - objective:
+      name: "Ethane"
+      smiles: "CC"
+    markers:
+      - required: true
+        atoms:
+          - element: "C"
+            count: 2
+      - required: false
+        atoms:
+          - element: "O"
+            count: 2
+      - required: true
+        atoms:
+          - element: "H"
+            count: 6
+
+  - objective:
+      name: "Ethanol"
+      smiles: "CCO"
+    markers:
+      - required: true
+        atoms:
+          - element: "C"
+            count: 2
+      - required: true
+        atoms:
+          - element: "H"
+            count: 6
+      - required: true
+        atoms:
+          - element: "O"
+            count: 1
+      - required: false
+        atoms:
+          - element: "N"
+            count: 1
