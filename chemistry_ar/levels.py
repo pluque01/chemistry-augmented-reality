@@ -1,4 +1,5 @@
 import toml
+import yaml
 
 
 class Level:
@@ -54,10 +55,11 @@ class LevelMarkerAtom:
 
 
 class GameLevels:
-    levels_data = toml.load("chemistry_ar/data/levels.toml")
     current_level_number: int = 0
 
     def __init__(self):
+        with open("chemistry_ar/data/levels.yaml", "r") as file:
+            self.levels_data = yaml.safe_load(file)
         self.list_of_levels: dict[int, Level] = {}
         for i in range(len(self.levels_data["levels"])):
             self.list_of_levels[i] = Level(self.levels_data["levels"][i])
